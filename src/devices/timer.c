@@ -7,6 +7,7 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include <list.h>
   
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -16,6 +17,9 @@
 #if TIMER_FREQ > 1000
 #error TIMER_FREQ <= 1000 recommended
 #endif
+
+/*List of threads sleeping */
+static struct list sleeping_list;
 
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
@@ -37,6 +41,8 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  /* initializes a list with list element sleeping_list when the timer is initialized */ 
+  list_init(&sleeping_list);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -89,16 +95,16 @@ timer_elapsed (int64_t then)
 void 
 timer_sleep (int64_t ticks)
 {
-	int64_t start = timer_ticks ();
- 
 	ASSERT (intr_get_level () == INTR_ON);
- //     while (timer_elapsed (start) < ticks) 
- //     thread_yield ();
-
-        enum intr_level lvl_restore = intr_disable();
-        struct thread *t = thread_current();
+	/* find ticks to stop sleep and set it equal to thread->ticks */
         thread_current()->ticks = timer_ticks() + ticks;
-        //enter into list here
+	
+	/*temporarily disable interupts */
+        enum intr_level lvl_restore = intr_disable();
+
+        /* add the thread into the sleeping list */
+	list_insert_ordered(&sleeping_list, &thread_current()->elem,
+			   (list_less_func *) &compare_ticks, NULL);
         thread_block();
         intr_set_level(lvl_restore);
 }
@@ -179,6 +185,23 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  /* creats list element that starts at start of sleep list */
+  struct list_elem *e = list_begin(&sleeping_list);
+  
+  while(e != list_end(&sleeping_list))
+  {
+    struct thread *t = list_entry(e, struct thread, elem);
+    if(ticks < t->ticks)
+    {
+      return;
+    }
+    /* e gets remove from the sleeping list */
+    list_remove(e);
+    /* thread t gets unblocked and put back onto the ready list */
+    thread_unblock(t);
+    /* and the while loop continues incase another element has same awake time */
+    e = list_begin(&sleeping_list);
+  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
