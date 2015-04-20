@@ -343,7 +343,12 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+  int old_priority=thread_current()->priority;
   thread_current ()->priority = new_priority;
+  if(old_priority<new_priority)
+  {
+	thread_yield();
+  }
 }
 
 /* Returns the current thread's priority. */
@@ -496,7 +501,23 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  {
+  	int max_priority=-1;
+  	struct thread * max_priority_thread=NULL;
+  	struct thread* t;
+		struct list_elem *e;
+		for(e=list_begin(&ready_list);e!=list_end(&ready_list);e=list_next(e))
+		{
+			t=list_entry(e,struct thread,elem);
+			if (t->priority>=max_priority)
+			{
+				max_priority=t->priority;
+				max_priority_thread=t;
+			}
+		}
+		return t;
+  }
+    //return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
 
 /* Completes a thread switch by activating the new thread's page
