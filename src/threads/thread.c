@@ -239,15 +239,21 @@ thread_block (void)
 void
 thread_unblock (struct thread *t) 
 {
-  enum intr_level old_level;
 
   ASSERT (is_thread (t));
 
-  old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+
+  enum intr_level old_level;
+
+  old_level = intr_disable ();
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
+	//if(get_thread_priority(t)>thread_get_priority())
+	//{
+	//	thread_yield();
+	//}
 }
 
 /* Returns the name of the running thread. */
@@ -343,19 +349,24 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  int old_priority=thread_current()->priority;
   thread_current ()->priority = new_priority;
-  if(old_priority<new_priority)
+  if(next_thread_to_run()->priority > new_priority)
   {
-	thread_yield();
+		thread_yield();
   }
+}
+
+int
+get_thread_priority (struct thread * t) 
+{
+  return t->priority;
 }
 
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+  return get_thread_priority(thread_current());
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -495,35 +506,58 @@ alloc_frame (struct thread *t, size_t size)
    empty.  (If the running thread can continue running, then it
    will be in the run queue.)  If the run queue is empty, return
    idle_thread. */
+
+
+bool priority_less_comp(const struct list_elem *a,
+										const struct list_elem *b, void *aux UNUSED)
+{
+	struct thread *x=list_entry(a,struct thread, elem);
+	struct thread *y=list_entry(b,struct thread, elem);
+	if(x->priority < y->priority)
+	{
+		return true;
+	}
+	return false;
+}
+
+struct thread *
+max_priority_thread(struct list * list) 
+{
+	struct thread *max_priority_thread;
+  struct thread *t;
+	struct list_elem *e;
+	e=list_begin(list);
+	t=list_entry(e, struct thread, elem);
+	max_priority_thread=t;
+	e=list_next(e);
+	while(e!=list_end(list))
+	{
+		t=list_entry(e,struct thread,elem);
+		if (get_thread_priority(t)>=get_thread_priority(max_priority_thread))
+		{
+			max_priority_thread=t;
+		}
+		e=list_next(e);
+	}
+	return max_priority_thread;
+}
+
 static struct thread *
 next_thread_to_run (void) 
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else
+  else 
   {
-  	struct thread *max_priority_thread;
-  	struct thread *t;
-		struct list_elem *e;
-		struct list_elem *max_thread_list_elem;
-		e=list_begin(&ready_list);
-		t=list_entry(e, struct thread, elem);
-		max_priority_thread=t;
-		max_thread_list_elem=e;
-		e=list_next(e);
-		while(e!=list_end(&ready_list))
-		{
-			t=list_entry(e,struct thread,elem);
-			if (t->priority>=max_priority_thread->priority)
-			{
-				max_priority_thread=t;
-				max_thread_list_elem=e;
-			}
-			e=list_next(e);
-		}
-		list_remove(max_thread_list_elem);
-		return max_priority_thread;
-  }
+  	//printf("Inside the else statement");
+  	struct list_elem * max=list_max(&ready_list,(list_less_func *) &priority_less_comp,NULL);
+  	return list_entry(max,struct thread, elem);
+	}
+  /*{
+  	struct thread * max_thread=max_priority_thread(&ready_list);
+		list_remove(&max_thread->elem);
+		return max_thread;
+  }*/
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -590,6 +624,8 @@ schedule (void)
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
 
+  list_remove(&next->elem);
+  
   if (cur != next)
     prev = switch_threads (cur, next);
   thread_schedule_tail (prev);
