@@ -250,10 +250,12 @@ thread_unblock (struct thread *t)
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
-	//if(get_thread_priority(t)>thread_get_priority())
+	if(get_thread_priority(t) > thread_get_priority())
+	{
+		//printf("True, this shoulda been premmpted neega");
 	//{
-	//	thread_yield();
-	//}
+		//thread_yield();
+	}
 }
 
 /* Returns the name of the running thread. */
@@ -349,9 +351,11 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+	//printf("Lowering priority\n");
   thread_current ()->priority = new_priority;
-  if(next_thread_to_run()->priority > new_priority)
+  if(next_thread_to_run()->priority >= new_priority)
   {
+  	//printf("SHould yield now\n");
 		thread_yield();
   }
 }
