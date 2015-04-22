@@ -211,10 +211,7 @@ thread_create (const char *name, int priority,
 
 	if(get_thread_priority(t) > thread_get_priority())
 	{
-		if(intr_context())
-			intr_yield_on_return();
-		else
-			thread_yield();
+		thread_yield();
 	}
 
   return tid;
@@ -360,10 +357,10 @@ thread_set_priority (int new_priority)
   struct thread* t=list_entry(max,struct thread, elem);
   if(new_priority<t->priority)
 	{
-		if(intr_context()) 
-			intr_yield_on_return();
-		else 
-			thread_yield();
+		//if(intr_context()) 
+			//intr_yield_on_return();
+		//else 
+		thread_yield();
   }
 }
 
@@ -386,46 +383,10 @@ get_thread_priority (const struct thread * t)
   return max_priority;
 }
 
-/*int max_int(int a, int b)
-{
-	if(a>=b) return a;
-	else return b;
-}*/
-
-/*Priority comparator for donor list*/
-/*bool priority_less_dl(const struct list_elem *a,
-										const struct list_elem *b, void *aux UNUSED)
-{
-	struct thread *x=list_entry(a,struct thread, dl_elem);
-	struct thread *y=list_entry(b,struct thread, dl_elem);
-	return x->priority < y->priority;
-}*/
-
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
 {
-  //return get_thread_priority(thread_current());
-	/*int max_priority=thread_current()->priority;
-	struct list * dlist=&thread_current()->donor_list;
-	//printf("\nIterating through donor list\n\n");
-	struct list_elem * e=list_begin(dlist);
-	while(e!=list_end(dlist))
-	{
-		//printf("One iteration");
-  	struct thread* curr=list_entry(e,struct thread, dl_elem);
-  	if(curr->priority>max_priority)
-  	{	
-			max_priority=curr->priority;
-		}
-		e=list_next(e);
-  }*/
-  /*struct list_elem * max_in_donor_list=list_max(&thread_current()->donor_list,& priority_less_dl,NULL);
-  printf("\n\nPassed 385. list_max is fine\n\n");
-  struct thread* donor_max=list_entry(max_in_donor_list,struct thread, dl_elem);
-  if(donor_max->priority>base_priority)
-  	return donor_max->priority;
-  else*/
   return get_thread_priority(thread_current());
 }
 
@@ -609,15 +570,9 @@ next_thread_to_run (void)
     return idle_thread;
   else 
   {
-  	//printf("Inside the else statement");
   	struct list_elem * max=list_max(&ready_list,(list_less_func *) &priority_less_comp,NULL);
   	return list_entry(max,struct thread, elem);
 	}
-  /*{
-  	struct thread * max_thread=max_priority_thread(&ready_list);
-		list_remove(&max_thread->elem);
-		return max_thread;
-  }*/
 }
 
 /* Completes a thread switch by activating the new thread's page

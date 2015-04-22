@@ -130,8 +130,9 @@ sema_up (struct semaphore *sema)
 	//int y=get_thread_priority(t);
 	//if(get_thread_priority(t)>thread_get_priority())
 	//{
-		if(intr_context()) intr_yield_on_return();
-		else thread_yield();
+		//if(intr_context()) intr_yield_on_return();
+		//else
+	thread_yield();
 	//}
 }
 
