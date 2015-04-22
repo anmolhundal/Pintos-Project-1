@@ -374,15 +374,13 @@ bool priority_comp_cond(const struct list_elem* a, const struct list_elem* b, vo
 	if(!list_empty(&x->semaphore.waiters))
 	{
 		e=list_max(&x->semaphore.waiters,& priority_less_comp,NULL);
-		a_max=list_entry(e, struct thread, elem)->priority;
+		a_max=get_thread_priority(list_entry(e, struct thread, elem));
 	}
 	if(!list_empty(&y->semaphore.waiters))
 	{
-		e=list_max(&x->semaphore.waiters,& priority_less_comp,NULL);
-		a_max=list_entry(e, struct thread, elem)->priority;
+		e=list_max(&y->semaphore.waiters,& priority_less_comp,NULL);
+		b_max=get_thread_priority(list_entry(e, struct thread, elem));
 	}
-	max=a_max;
-	if(b_max>a_max) max=b_max; 
 	//printf("\n a_max is %d\n. b_max is %d", a_max,b_max);
 	//printf("\n Max Priority is %d\n\n", a_max);
 	return a_max<b_max;
