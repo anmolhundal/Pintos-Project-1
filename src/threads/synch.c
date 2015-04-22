@@ -69,7 +69,6 @@ sema_down (struct semaphore *sema)
   while (sema->value == 0) 
     {
       list_push_back(&sema->waiters,&thread_current()->elem);
-      //list_insert_ordered (&sema->waiters, &thread_current ()->elem,(list_less_func *)&priority_less_comp,NULL);
       thread_block ();
     }
   sema->value--;
@@ -121,19 +120,10 @@ sema_up (struct semaphore *sema)
     list_remove(max);
     t=list_entry (max, struct thread, elem);
     thread_unblock (t);
-    //thread_unblock (list_entry (list_pop_front (&sema->waiters), struct thread, elem));
   }
   sema->value++;
   intr_set_level (old_level);
-	//int x=t->priority;
-	//int y=thread_get_priority();
-	//int y=get_thread_priority(t);
-	//if(get_thread_priority(t)>thread_get_priority())
-	//{
-		//if(intr_context()) intr_yield_on_return();
-		//else
 	thread_yield();
-	//}
 }
 
 static void sema_test_helper (void *sema_);
@@ -224,11 +214,7 @@ lock_acquire (struct lock *lock)
 	intr_set_level(old_state1);
 
   sema_down (&lock->semaphore);
-
-	//printf("\nWoke Up\n\n");
-
 	thread_current()->waiting_lock=NULL;
-	
 	lock->holder = thread_current ();
 }
 
@@ -382,8 +368,6 @@ bool priority_comp_cond(const struct list_elem* a, const struct list_elem* b, vo
 		e=list_max(&y->semaphore.waiters,& priority_less_comp,NULL);
 		b_max=get_thread_priority(list_entry(e, struct thread, elem));
 	}
-	//printf("\n a_max is %d\n. b_max is %d", a_max,b_max);
-	//printf("\n Max Priority is %d\n\n", a_max);
 	return a_max<b_max;
 }
 
@@ -400,7 +384,6 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
    	struct list_elem * max=list_max(&cond->waiters,&priority_comp_cond, NULL);
    	list_remove(max);
 		sema_up (&list_entry (max,struct semaphore_elem, elem)->semaphore);
-		//sema_up (&list_entry (list_pop_front (&cond->waiters),struct semaphore_elem, elem)->semaphore);
 	}
 }
 

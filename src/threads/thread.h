@@ -141,7 +141,6 @@ bool priority_less_comp(const struct list_elem * a, const struct list_elem * b, 
 int get_thread_priority (const struct thread *t);
 int thread_get_priority (void);
 void thread_set_priority (int);
-struct thread* max_priority_thread(struct list *);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
