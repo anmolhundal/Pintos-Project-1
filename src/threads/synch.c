@@ -383,8 +383,8 @@ bool priority_comp_cond(const struct list_elem* a, const struct list_elem* b, vo
 	}
 	max=a_max;
 	if(b_max>a_max) max=b_max; 
-	printf("\n a_max is %d\n. b_max is %d", a_max,b_max);
-	printf("\n Max Priority is %d\n\n", a_max);
+	//printf("\n a_max is %d\n. b_max is %d", a_max,b_max);
+	//printf("\n Max Priority is %d\n\n", a_max);
 	return a_max<b_max;
 }
 

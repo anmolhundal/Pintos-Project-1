@@ -370,7 +370,20 @@ thread_set_priority (int new_priority)
 int
 get_thread_priority (const struct thread * t) 
 {
-  return t->priority;
+	int max_priority=t->priority;
+	struct list * dlist=&t->donor_list;
+	struct list_elem * e=list_begin(dlist);
+	while(e!=list_end(dlist))
+	{
+  	struct thread* curr=list_entry(e,struct thread, dl_elem);
+  	int current=get_thread_priority(curr);
+  	if(current>max_priority)
+  	{	
+			max_priority=current;
+		}
+		e=list_next(e);
+  }
+  return max_priority;
 }
 
 /*int max_int(int a, int b)
@@ -393,7 +406,7 @@ int
 thread_get_priority (void) 
 {
   //return get_thread_priority(thread_current());
-	int max_priority=thread_current()->priority;
+	/*int max_priority=thread_current()->priority;
 	struct list * dlist=&thread_current()->donor_list;
 	//printf("\nIterating through donor list\n\n");
 	struct list_elem * e=list_begin(dlist);
@@ -406,14 +419,14 @@ thread_get_priority (void)
 			max_priority=curr->priority;
 		}
 		e=list_next(e);
-  }
+  }*/
   /*struct list_elem * max_in_donor_list=list_max(&thread_current()->donor_list,& priority_less_dl,NULL);
   printf("\n\nPassed 385. list_max is fine\n\n");
   struct thread* donor_max=list_entry(max_in_donor_list,struct thread, dl_elem);
   if(donor_max->priority>base_priority)
   	return donor_max->priority;
   else*/
-  	return max_priority;
+  return get_thread_priority(thread_current());
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -564,7 +577,7 @@ bool priority_less_comp(const struct list_elem *a,
 {
 	struct thread *x=list_entry(a,struct thread, elem);
 	struct thread *y=list_entry(b,struct thread, elem);
-	return x->priority < y->priority;
+	return get_thread_priority(x) < get_thread_priority(y);
 }
 
 struct thread *
