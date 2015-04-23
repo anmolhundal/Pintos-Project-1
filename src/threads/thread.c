@@ -389,17 +389,18 @@ thread_get_priority (void)
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int new_nice) 
 {
-  /* Not yet implemented. */
+	thread_current()->nice=new_nice;
+  /* Recalculate priority here.. */
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  /* May need another helper function. */
+  return thread_current()->nice;
 }
 
 /* Returns 100 times the system load average. */
@@ -508,6 +509,11 @@ init_thread (struct thread *t, const char *name, int priority)
 	/*Initializing Donor List*/
   list_init (&t->donor_list);
   t->waiting_lock=NULL;
+
+	/*Advanced Scheduler*/
+	if(strcmp(t->name,"main")==0) t->nice=0;
+	else t->nice=thread_current()->nice;
+
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

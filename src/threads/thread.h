@@ -95,6 +95,10 @@ struct thread
 		struct list_elem dl_elem;
 		struct lock * waiting_lock;
 
+		/*Advanced Scheduler*/
+		int nice;
+		int recent_cpu
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
