@@ -127,13 +127,36 @@ thread_start (void)
 /* Called by the timer interrupt function for MLFQS tasks. */
 void calculate_load_avg(void)
 {
-	int num_ready;
-	if(thread_current()==idle_thread)
-  	num_ready=0;
-  else
-  	num_ready=1;
-  num_ready+=list_size(&ready_list);
-  load_avg=(load_avg*59 + int_to_fixp(num_ready))/60;
+	int num_ready=list_size(&ready_list);
+	if(thread_current()!=idle_thread)
+  {	
+  	num_ready++;
+	}
+	//printf("Number of ready jobs is %d\n", num_ready);
+	int x1=load_avg*59/60;
+	int x2=int_to_fixp(num_ready)/60;
+  load_avg=x1+x2;
+}
+
+/* Function to check if time_slice is over */
+void time_dog(void)
+{
+	if(list_empty(&ready_list)) return;
+	struct list_elem * e=list_max(&ready_list, &priority_less_comp, NULL);
+	struct thread * t=list_entry(e, struct thread, elem);
+	if(intr_context())
+	{
+		thread_ticks++;
+		if ( thread_current()->priority < t->priority || (thread_ticks >= TIME_SLICE && thread_current()->priority == t->priority) )
+		{
+			intr_yield_on_return();
+		}
+		return;
+	}
+	if (thread_current()->priority < t->priority)
+	{
+	thread_yield();
+	}
 }
 
 /* Increment recent cpu for the runnign thread */
@@ -145,36 +168,31 @@ void increment_recent_cpu(void)
 
 
 /* Recalculate recent_cpu */
-void calculate_recent_cpu(void)
+void calc_recent_cpu(struct thread * t)
 {
 	int coeff=div_fixp(load_avg*2,load_avg*2+int_to_fixp(1));
-	struct list_elem * e;
-	struct thread * t;
-
-	/* For all threads thread */
-  for (e = list_begin (&all_list); e != list_end (&all_list);
-       e = list_next (e))
-  {
-    struct thread *t = list_entry (e, struct thread, allelem);
-		if(t!=idle_thread)
-		{
+	if(t!=idle_thread)
+	{
 			t->recent_cpu=mult_fixp(coeff,t->recent_cpu)+int_to_fixp(t->nice);
-		}
 	}
 }
 
-int calculate_thread_priority(struct thread * t)
+void calc_thread_curr_priority()
 {
-	int prior=fixp_to_int_round(int_to_fixp(PRI_MAX) - get_thread_recent_cpu(t)/4 - int_to_fixp(get_thread_nice(t))*2);
+	calc_thread_priority(thread_current());
+}
+
+void calc_thread_priority(struct thread * t)
+{
+	int prior=fixp_to_int_round(int_to_fixp(PRI_MAX) - t->recent_cpu/4 - int_to_fixp(t->nice)*2);
 	if(prior>PRI_MAX)
 		prior=PRI_MAX;
 	else if(prior<PRI_MIN)
 		prior=PRI_MIN;
 	t->priority=prior;
-	return prior;
 }
 
-void calculate_thread_priority_all(void)
+void calc_all(void)
 {
 	struct list_elem * e;
 	for (e = list_begin (&all_list); e != list_end (&all_list);
@@ -183,10 +201,28 @@ void calculate_thread_priority_all(void)
     struct thread *t = list_entry (e, struct thread, allelem);
 		if(t!=idle_thread)
 		{
-			calculate_thread_priority(t);
+			calc_thread_priority(t);
+			calc_recent_cpu(t);
 		}
 	}
 }
+
+
+void calc_cpu_only(void)
+{
+	struct list_elem * e;
+	for (e = list_begin (&all_list); e != list_end (&all_list);
+       e = list_next (e))
+  {
+    struct thread *t = list_entry (e, struct thread, allelem);
+		if(t!=idle_thread)
+		{
+			calc_recent_cpu(t);
+		}
+	}
+}
+
+
 
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
@@ -280,6 +316,7 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+	//time_dog();
 	if(get_thread_priority(t) > thread_get_priority())
 	{
 		thread_yield();
@@ -462,42 +499,59 @@ thread_get_priority (void)
 void
 thread_set_nice (int new_nice) 
 {
+	enum intr_level old_level=intr_disable();
 	thread_current()->nice=new_nice;
+	intr_set_level(old_level);
 
   /* Recalculating priority here.. */
-  calculate_thread_priority(thread_current());
-  thread_yield();
+  calc_thread_curr_priority();
+	//time_dog();
 }
 
 /* Returns the current thread's nice value. */
 int get_thread_nice(struct thread * t)
 {
-	return t->nice;
+	enum intr_level old_level=intr_disable();
+	int x = t->nice;
+	intr_set_level(old_level);
+	return x;
 }
 
 int
 thread_get_nice (void) 
 {
-  return get_thread_nice(thread_current());
+	enum intr_level old_level=intr_disable();
+  int x = get_thread_nice(thread_current());
+	intr_set_level(old_level);
+	return x;
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  return fixp_to_int_round(load_avg*100);
+	enum intr_level old_level=intr_disable();
+  int x = fixp_to_int_round(load_avg*100);
+	intr_set_level(old_level);
+	return x;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int get_thread_recent_cpu ( struct thread * t )
 {
-	return fixp_to_int_round(t->recent_cpu*100);
+	enum intr_level old_level=intr_disable();
+	int x = fixp_to_int_round(t->recent_cpu*100);
+	intr_set_level(old_level);
+	return x;
 }
 
 int
 thread_get_recent_cpu (void) 
 {
-  return get_thread_recent_cpu(thread_current());
+	enum intr_level old_level=intr_disable();
+  int x=get_thread_recent_cpu(thread_current());
+	intr_set_level(old_level);
+	return x;
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -594,22 +648,24 @@ init_thread (struct thread *t, const char *name, int priority)
 	/*Advanced Scheduler*/
 
 	/* Initilizing nice value. */
-	if(strcmp(t->name,"main")==0) t->nice=0;
-	else t->nice=thread_current()->nice;
+	//if(strcmp(t->name,"main")==0) t->nice=0;
+	//else t->nice=thread_current()->nice;
+	t->nice=0;
 
 	/* Initilizing recent_cpu */
-	if(strcmp(t->name,"main")==0) t->recent_cpu=0;
-	else t->recent_cpu=thread_current()->recent_cpu;
+	//if(strcmp(t->name,"main")==0) t->recent_cpu=0;
+	//else t->recent_cpu=thread_current()->recent_cpu;
+	t->recent_cpu=0;
 
 	/* Initializing priority */
-  if(thread_mlfqs)
-  {
-		calculate_thread_priority(t);
-  }
-  else
-  {
-  	t->priority = priority;
-	}
+  //if(thread_mlfqs)
+  //{
+	//	calculate_thread_priority(t);
+  //}
+  //else
+  //{
+  t->priority = priority;
+	//}
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

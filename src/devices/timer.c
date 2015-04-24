@@ -149,7 +149,7 @@ timer_mdelay (int64_t ms)
 
 /* Sleeps for approximately US microseconds.  Interrupts need not
    be turned on.
-
+//
    Busy waiting wastes CPU cycles, and busy waiting with
    interrupts off for the interval between timer ticks or longer
    will cause timer ticks to be lost.  Thus, use timer_usleep()
@@ -185,27 +185,24 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+  thread_tick ();
 
   /* Calculating load_avg, recent_cpu */
 	if(thread_mlfqs)
 	{
+		increment_recent_cpu();
 		if(timer_ticks()%TIMER_FREQ==0)
 		{
 			calculate_load_avg();
-			calculate_recent_cpu();
+			//calc_all();
+			calc_cpu_only();
 		}
-		else
-		{
-			increment_recent_cpu();
-		}
-
 		if(timer_ticks()%4==0)
 		{
-			calculate_thread_priority_all();
+			calc_thread_curr_priority();
 		}
 	}
 
-  thread_tick ();
   /* creats list element that starts at start of sleep list */
   struct list_elem *e = list_begin(&sleeping_list);
   
@@ -223,6 +220,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
     /* and the while loop continues incase another element has same awake time */
     e = list_begin(&sleeping_list);
   }
+	//time_dog();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

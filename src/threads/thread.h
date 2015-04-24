@@ -129,10 +129,12 @@ tid_t thread_create (const char *name, int priority, thread_func *, void *);
 
 /* For MLFQS */
 void calculate_load_average(void);
-void calculate_recent_cpu(void);
+void calc_recent_cpu(struct thread * t);
 void increment_recent_cpu(void);
-void calculate_thread_priority_all(void);
-int calculate_thread_priority(struct thread * t);
+void calc_thread_priority(struct thread * t);
+void calc_thread_curr_priority(void);
+void calc_all(void);
+void calc_cpu_only(void);
 
 void thread_block (void);
 void thread_unblock (struct thread *);
