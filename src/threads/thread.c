@@ -138,26 +138,6 @@ void calculate_load_avg(void)
   load_avg=x1+x2;
 }
 
-/* Function to check if time_slice is over */
-void time_dog(void)
-{
-	if(list_empty(&ready_list)) return;
-	struct list_elem * e=list_max(&ready_list, &priority_less_comp, NULL);
-	struct thread * t=list_entry(e, struct thread, elem);
-	if(intr_context())
-	{
-		thread_ticks++;
-		if ( thread_current()->priority < t->priority || (thread_ticks >= TIME_SLICE && thread_current()->priority == t->priority) )
-		{
-			intr_yield_on_return();
-		}
-		return;
-	}
-	if (thread_current()->priority < t->priority)
-	{
-	thread_yield();
-	}
-}
 
 /* Increment recent cpu for the runnign thread */
 void increment_recent_cpu(void)
@@ -316,7 +296,6 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
-	//time_dog();
 	if(get_thread_priority(t) > thread_get_priority())
 	{
 		thread_yield();
@@ -505,7 +484,6 @@ thread_set_nice (int new_nice)
 
   /* Recalculating priority here.. */
   calc_thread_curr_priority();
-	//time_dog();
 }
 
 /* Returns the current thread's nice value. */
@@ -645,27 +623,9 @@ init_thread (struct thread *t, const char *name, int priority)
   t->waiting_lock=NULL;
 
 
-	/*Advanced Scheduler*/
-
-	/* Initilizing nice value. */
-	//if(strcmp(t->name,"main")==0) t->nice=0;
-	//else t->nice=thread_current()->nice;
 	t->nice=0;
-
-	/* Initilizing recent_cpu */
-	//if(strcmp(t->name,"main")==0) t->recent_cpu=0;
-	//else t->recent_cpu=thread_current()->recent_cpu;
 	t->recent_cpu=0;
-
-	/* Initializing priority */
-  //if(thread_mlfqs)
-  //{
-	//	calculate_thread_priority(t);
-  //}
-  //else
-  //{
-  t->priority = priority;
-	//}
+	t->priority = priority;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

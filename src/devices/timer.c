@@ -194,10 +194,10 @@ timer_interrupt (struct intr_frame *args UNUSED)
 		if(timer_ticks()%TIMER_FREQ==0)
 		{
 			calculate_load_avg();
-			//calc_all();
-			calc_cpu_only();
+			calc_all();
+			//calc_cpu_only();
 		}
-		if(timer_ticks()%4==0)
+		else if(timer_ticks()%4==0)
 		{
 			calc_thread_curr_priority();
 		}
@@ -220,7 +220,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
     /* and the while loop continues incase another element has same awake time */
     e = list_begin(&sleeping_list);
   }
-	//time_dog();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
