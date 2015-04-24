@@ -97,7 +97,7 @@ struct thread
 
 		/*Advanced Scheduler*/
 		int nice;
-		int recent_cpu
+		int recent_cpu;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -126,6 +126,13 @@ void thread_print_stats (void);
 
 typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
+
+/* For MLFQS */
+void calculate_load_average(void);
+void calculate_recent_cpu(void);
+void increment_recent_cpu(void);
+void calculate_thread_priority_all(void);
+int calculate_thread_priority(struct thread * t);
 
 void thread_block (void);
 void thread_unblock (struct thread *);

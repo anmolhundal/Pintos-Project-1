@@ -1,4 +1,5 @@
 #include "devices/timer.h"
+//#include "threads/fixed-point.h"
 #include <debug.h>
 #include <inttypes.h>
 #include <round.h>
@@ -184,6 +185,26 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+
+  /* Calculating load_avg, recent_cpu */
+	if(thread_mlfqs)
+	{
+		if(timer_ticks()%TIMER_FREQ==0)
+		{
+			calculate_load_avg();
+			calculate_recent_cpu();
+		}
+		else
+		{
+			increment_recent_cpu();
+		}
+
+		if(timer_ticks()%4==0)
+		{
+			calculate_thread_priority_all();
+		}
+	}
+
   thread_tick ();
   /* creats list element that starts at start of sleep list */
   struct list_elem *e = list_begin(&sleeping_list);

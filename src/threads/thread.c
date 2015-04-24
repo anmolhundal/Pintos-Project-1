@@ -1,4 +1,5 @@
 #include "threads/thread.h"
+#include "threads/fixed-point.h"
 #include <debug.h>
 #include <stddef.h>
 #include <random.h>
@@ -59,6 +60,9 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
+/* For MLFQS */
+int load_avg;
+
 static void kernel_thread (thread_func *, void *aux);
 
 static void idle (void *aux UNUSED);
@@ -93,6 +97,9 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
 
+	/* MLFQS queues and variable initilialisation */
+	load_avg=0;
+
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -115,6 +122,70 @@ thread_start (void)
 
   /* Wait for the idle thread to initialize idle_thread. */
   sema_down (&idle_started);
+}
+
+/* Called by the timer interrupt function for MLFQS tasks. */
+void calculate_load_avg(void)
+{
+	int num_ready;
+	if(thread_current()==idle_thread)
+  	num_ready=0;
+  else
+  	num_ready=1;
+  num_ready+=list_size(&ready_list);
+  load_avg=(load_avg*59 + int_to_fixp(num_ready))/60;
+}
+
+/* Increment recent cpu for the runnign thread */
+void increment_recent_cpu(void)
+{
+	if(thread_current()!=idle_thread)
+		thread_current()->recent_cpu=add_fixp_int(thread_current()->recent_cpu,1);
+}
+
+
+/* Recalculate recent_cpu */
+void calculate_recent_cpu(void)
+{
+	int coeff=div_fixp(load_avg*2,load_avg*2+int_to_fixp(1));
+	struct list_elem * e;
+	struct thread * t;
+
+	/* For all threads thread */
+  for (e = list_begin (&all_list); e != list_end (&all_list);
+       e = list_next (e))
+  {
+    struct thread *t = list_entry (e, struct thread, allelem);
+		if(t!=idle_thread)
+		{
+			t->recent_cpu=mult_fixp(coeff,t->recent_cpu)+int_to_fixp(t->nice);
+		}
+	}
+}
+
+int calculate_thread_priority(struct thread * t)
+{
+	int prior=fixp_to_int_round(int_to_fixp(PRI_MAX) - get_thread_recent_cpu(t)/4 - int_to_fixp(get_thread_nice(t))*2);
+	if(prior>PRI_MAX)
+		prior=PRI_MAX;
+	else if(prior<PRI_MIN)
+		prior=PRI_MIN;
+	t->priority=prior;
+	return prior;
+}
+
+void calculate_thread_priority_all(void)
+{
+	struct list_elem * e;
+	for (e = list_begin (&all_list); e != list_end (&all_list);
+       e = list_next (e))
+  {
+    struct thread *t = list_entry (e, struct thread, allelem);
+		if(t!=idle_thread)
+		{
+			calculate_thread_priority(t);
+		}
+	}
 }
 
 /* Called by the timer interrupt handler at each timer tick.
@@ -392,33 +463,43 @@ void
 thread_set_nice (int new_nice) 
 {
 	thread_current()->nice=new_nice;
-  /* Recalculate priority here.. */
+
+  /* Recalculating priority here.. */
+  calculate_thread_priority(thread_current());
+  thread_yield();
 }
 
 /* Returns the current thread's nice value. */
+int get_thread_nice(struct thread * t)
+{
+	return t->nice;
+}
+
 int
 thread_get_nice (void) 
 {
-  /* May need another helper function. */
-  return thread_current()->nice;
+  return get_thread_nice(thread_current());
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return fixp_to_int_round(load_avg*100);
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
+int get_thread_recent_cpu ( struct thread * t )
+{
+	return fixp_to_int_round(t->recent_cpu*100);
+}
+
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return get_thread_recent_cpu(thread_current());
 }
-
+
 /* Idle thread.  Executes when no other thread is ready to run.
 
    The idle thread is initially put on the ready list by
@@ -502,7 +583,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
-  t->priority = priority;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 
@@ -510,10 +590,26 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init (&t->donor_list);
   t->waiting_lock=NULL;
 
+
 	/*Advanced Scheduler*/
+
+	/* Initilizing nice value. */
 	if(strcmp(t->name,"main")==0) t->nice=0;
 	else t->nice=thread_current()->nice;
 
+	/* Initilizing recent_cpu */
+	if(strcmp(t->name,"main")==0) t->recent_cpu=0;
+	else t->recent_cpu=thread_current()->recent_cpu;
+
+	/* Initializing priority */
+  if(thread_mlfqs)
+  {
+		calculate_thread_priority(t);
+  }
+  else
+  {
+  	t->priority = priority;
+	}
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

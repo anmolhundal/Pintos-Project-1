@@ -21,7 +21,7 @@ int sub_fixp_int(int x, int n);
 int mult_fixp(int x, int y);
 int mult_fixp_int(int x, int n);
 
-int div_fp(int x, int y);
+int div_fixp(int x, int y);
 int div_fixp_int(int x, int n);
 
 int int_to_fixp(int n)
@@ -66,12 +66,12 @@ int mult_fixp(int x, int y)
 	return ((int64_t) x) * y / F;
 }
 
-int mult_fixp_int(int x, int n);
+int mult_fixp_int(int x, int n)
 {
 	return x * n;
 }
 
-int div_fp(int x, int y)
+int div_fixp(int x, int y)
 {
 	return ((int64_t) x) * F / y;
 }
